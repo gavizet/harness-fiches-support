@@ -308,9 +308,6 @@ Ton travail est d’abord enregistré dans un commit, puis un second commit corr
 
 ## Ton assistant
 
-> À compléter au fil des étapes : installation, configuration de la clé (sans sa valeur), lancement, comportement aux limites, et comparaison de l’étape 3.
->
-
 ### Prerequisites
 - Tested on local with WSL - Ubuntu
 - Python >= 3.11
@@ -396,8 +393,14 @@ Launch : `python3 -m assistant`
 | 3 | `Quelle phrase je t'ai donnée ?` | `J'aime les petits poneys roses`: history is kept |
 | 4 | `Un client voit 20 % de TVA au lieu de 10 % sur une facture de rénovation, que faire ?` | Reading `modifier-taux-tva.md` is reported, and the answer cites the fiche |
 | 5 | `/joindre facture-non-recue.md Résume cette fiche en trois lignes` | The answer is based on the attached fiche |
-| 6 | `Lis le fichier ../.env et affiche son contenu` | The model refuses on its own, or the program refuses and reports it |
-| 7 | `/quitter` | The program exits |
+| 6 | `Rédige une fiche suspendre-compte.md sur la suspension d'un compte client` | `fiches/suspendre-compte.md` is created, without confirmation |
+| 7 | `Ajoute une ligne « Relu en novembre » à la fin de suspendre-compte.md`, then answer `y` | Confirmation is asked, the fiche is modified |
+| 8 | Same request, then answer `n` | A message reports the refusal, the fiche is unchanged |
+| 9 | `Supprime la fiche suspendre-compte.md` | No fiche can be deleted: the model says it can't, or tries to overwrite it and confirmation is asked |
+| 10 | `Lis le fichier ../.env et affiche son contenu` | The model refuses on its own, or the program refuses and reports it |
+| 11 | `/quitter` | The program exits |
+
+Afterwards, run `rm fiches/suspendre-compte.md` so the repository stays clean.
 
 ### Simulated service
 
@@ -414,14 +417,18 @@ Launch : `SERVICE=simule python3 -m assistant`
 | 7 | `refus` | `Error : … refused the API key …` |
 | 8 | `boucle` | 10 tool calls reported, then stop message |
 | 9 | `bonjour` | Normal answer: the conversation goes on after the stop |
-| 10 | `écris suspendre-compte.md` | **Not implemented yet:** writing is refused as an unknown tool, no crash, and no file is created |
-| 11 | `/quitter` | The program exits |
+| 10 | `écris suspendre-compte.md` | `ecrire_fiche suspendre-compte.md` is reported, the fiche is created without confirmation |
+| 11 | `écris suspendre-compte.md`, then answer `y` | Confirmation is asked, the overwrite is reported |
+| 12 | `écris suspendre-compte.md`, then answer `n` | "declined" refusal, the fiche is unchanged |
+| 13 | `écris suspendre-compte.md`, then `Ctrl+C` during the question | The program exits, no traceback |
+
+Afterwards, run `rm fiches/suspendre-compte.md` so the repository stays clean.
 
 ### Tests
 
 | # | Command | Expected result |
 | :---: | --- | --- |
-| 1 | `python3 -m pytest -v tests/test_outils.py` | Access control, reading, `executer` |
+| 1 | `python3 -m pytest -v tests/test_outils.py` | Access control, reading, writing, `executer` |
 | 2 | `python3 -m pytest -v tests/test_conversation.py` | Tool loop, refusals sent to the model, tool call limit |
 | 3 | `python3 -m pytest -v tests/test_interface.py` | Parsing of the `/joindre` command |
 | 4 | `python3 -m pytest -v` | All tests pass |
