@@ -128,6 +128,27 @@ def test_executer_valid_lire_fiche(limites):
     assert "# Modifier le taux de TVA" in executer(call, limites, None)
 
 
+def test_executer_valid_ecrire_fiche(limites):
+    """Check fiche creation demand from model goes to ecrire_fiche() with the right file name and content"""
+    accept = Mock(return_value=True)
+    call = fake_tool_call(
+        "ecrire_fiche", f'{{"nom": "{NEW_FICHE}", "contenu": "{NEW_CONTENT}"}}'
+    )
+    executer(call, limites, accept)
+    new_fiche_path = limites["dossier_fiches"] / NEW_FICHE
+    assert new_fiche_path.read_text(encoding="utf-8") == NEW_CONTENT
+
+
+def test_executer_valid_ecrire_fiche_passes_confirmer(limites, existing_fiche):
+    """Check executer() passes confirmer() on to ecrire_fiche()"""
+    accept = Mock(return_value=True)
+    call = fake_tool_call(
+        "ecrire_fiche", f'{{"nom": "{EXISTING_FICHE}", "contenu": "{NEW_CONTENT}"}}'
+    )
+    executer(call, limites, accept)
+    accept.assert_called_once_with(EXISTING_FICHE)
+
+
 def test_executer_fail_invalid_json(limites):
     call = fake_tool_call("lire_fiche", '{"nom": ')
     with pytest.raises(AccesRefuse):
