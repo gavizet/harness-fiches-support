@@ -49,6 +49,24 @@ def parse_join(user_input: str) -> tuple | None:
     return args[1], args[2]
 
 
+def handle_joindre(user_input, limites):
+    """Return the question and file content, or None if command is invalid"""
+    parsed_input = parse_join(user_input)
+    if parsed_input is None:
+        signaler(
+            "Expected different arguments, please respect this format:\n/joindre <fiche.md> <question>"
+        )
+        return None
+    file_name, ques_text = parsed_input
+    try:
+        # joindre_fiche takes file_name as 1st arg and question as 2nd
+        question = conversation.joindre_fiche(file_name, ques_text, limites)
+    except AccesRefuse as error:
+        signaler(f"Error while using /joindre: {error}")
+        return None
+    return question
+
+
 def lancer(verifier=False):
     """Démarre l’assistant et renvoie le code de sortie du programme."""
     try:
@@ -79,23 +97,12 @@ def lancer(verifier=False):
             continue
         if not saisie:
             continue
-        question = saisie
         if saisie.startswith("/joindre"):
-            # Split on whitespace as default
-            parsed_input = parse_join(saisie)
-            if parsed_input is None:
-                signaler(
-                    "Expected different arguments, please respect this format:\n/joindre <fiche.md> <question>"
-                )
+            question = handle_joindre(saisie, limites)
+            if question is None:
                 continue
-            file_name, ques_text = parsed_input
-            try:
-                # joindre_fiche takes file_name as 1st arg and question as 2nd
-                question = conversation.joindre_fiche(file_name, ques_text, limites)
-            # Keep looping if we get an exception
-            except AccesRefuse as error:
-                signaler(f"Error while using /joindre: {error}")
-                continue
+        else:
+            question = saisie
         signaler("Le service réfléchit…")
         try:
             reponse = conversation.poser(
