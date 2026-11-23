@@ -26,9 +26,6 @@ def tool_messages(messages):
 
 
 # TEST: poser()
-# TODO : add some more tests
-# test service keeps history when exception happens
-# test with empty last answer
 def test_poser_valid_model_response(limites):
     service = ServiceSimule([texte("Bonjour, que puis-je faire ?")])
     messages = conversation.nouvelle_conversation(limites)
@@ -67,6 +64,23 @@ def test_poser_valid_tools_sent_to_model(limites):
     assert service.requetes[0]["tools"] == DEFINITIONS
 
 
+def test_poser_valid_keeps_history_between_questions(limites):
+    """Checks model remembers a previous question and its answer"""
+    service = ServiceSimule([texte("First answer"), texte("Second answer")])
+    messages = conversation.nouvelle_conversation(limites)
+    conversation.poser(
+        "First question", messages, service, "simule", limites, refuser, ignorer
+    )
+    conversation.poser(
+        "Second question", messages, service, "simule", limites, refuser, ignorer
+    )
+    # 1 so we get second call
+    convo_received = service.requetes[1]["messages"]
+    # Check the history from first question / answer is still there
+    assert {"role": "user", "content": "First question"} in convo_received
+    assert {"role": "assistant", "content": "First answer"} in convo_received
+
+
 # Run appel_outil from service_simule.py to test this < makes a response
 def test_poser_valid_at_call_limit(limites):
     max_tool_calls = limites["appels_outil_max"]
@@ -81,6 +95,17 @@ def test_poser_valid_at_call_limit(limites):
         "TVA ?", messages, service, "simule", limites, refuser, ignorer
     )
     assert response == "Answer after the last tool call"
+
+
+# Check `if not model_reply.content:` condition of poser()
+def test_poser_fail_empty_final_answer(limites):
+    """Check empty final answer from model raises ServiceIndisponible"""
+    service = ServiceSimule([texte("")])
+    messages = conversation.nouvelle_conversation(limites)
+    with pytest.raises(ServiceIndisponible, match="empty answer"):
+        conversation.poser(
+            "Coucou", messages, service, "simule", limites, refuser, ignorer
+        )
 
 
 def test_poser_fail_refusal_sent_to_model(limites, tmp_path):

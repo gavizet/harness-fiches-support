@@ -1,5 +1,6 @@
 import pytest
-from assistant.interface import parse_join
+from assistant.interface import parse_join, handle_joindre
+from assistant.outils import AccesRefuse
 
 
 # TESTS: interface.parse_join()
@@ -27,3 +28,9 @@ def test_parse_join_fail_no_arg():
 
 def test_parse_join_fail_missing_arg():
     assert parse_join("/joindre fiche.md") is None
+
+
+def test_handle_joindre_fail_access_refused(limites):
+    """Check /joindre to a file outside folder returns None"""
+    result = handle_joindre("/joindre ../.env.md Résume", limites)
+    assert result is None

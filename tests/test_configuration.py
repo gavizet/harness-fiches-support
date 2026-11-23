@@ -21,6 +21,16 @@ def test_charger_configuration_valid_default_model(monkeypatch):
     assert result["modele"] == DEFAULT_MODEL
 
 
+def test_charger_configuration_valid_model_from_env(monkeypatch):
+    """Check defined model in .env is used instead of DEFAULT_MODEL"""
+    monkeypatch.setenv("SERVICE", "litellm")
+    monkeypatch.setenv("LITELLM_BASE_URL", "https://fake_key.com")
+    monkeypatch.setenv("LITELLM_API_KEY", "fake_key")
+    monkeypatch.setenv("MODELE", "fake-model")
+    result = charger_configuration()
+    assert result["modele"] == "fake-model"
+
+
 def test_charger_configuration_fail_empty_api_key(monkeypatch):
     """Check empty api key raises ConfigurationInvalide exception"""
     monkeypatch.setenv("SERVICE", "litellm")
