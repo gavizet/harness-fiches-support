@@ -9,6 +9,7 @@ from assistant.service_simule import (
     panne,
 )
 from assistant.outils import AccesRefuse, DEFINITIONS
+from assistant.client import ServiceIndisponible
 
 
 def refuser(nom):
@@ -66,6 +67,22 @@ def test_poser_valid_tools_sent_to_model(limites):
     assert service.requetes[0]["tools"] == DEFINITIONS
 
 
+# Run appel_outil from service_simule.py to test this < makes a response
+def test_poser_valid_at_call_limit(limites):
+    max_tool_calls = limites["appels_outil_max"]
+    tool_call = appel_outil("lire_fiche", nom="modifier-taux-tva.md")
+    # Call service the same amount of times as max_tool_calls
+    # `[tool_call] * max_tool_calls` creates a list of tool calls
+    service = ServiceSimule(
+        [tool_call] * max_tool_calls + [texte("Answer after the last tool call")]
+    )
+    messages = conversation.nouvelle_conversation(limites)
+    response = conversation.poser(
+        "TVA ?", messages, service, "simule", limites, refuser, ignorer
+    )
+    assert response == "Answer after the last tool call"
+
+
 def test_poser_fail_refusal_sent_to_model(limites, tmp_path):
     path = tmp_path / ".env.md"
     path.write_text("LITELLM_API_KEY=my_secret_key", encoding="utf-8")
@@ -107,22 +124,6 @@ def test_poser_fail_unknown_tool(limites):
     assert "unknown tool" in tool_messages(messages)[0]["content"]
 
 
-# Run appel_outil from service_simule.py to test this < makes a response
-def test_poser_valid_at_call_limit(limites):
-    max_tool_calls = limites["appels_outil_max"]
-    tool_call = appel_outil("lire_fiche", nom="modifier-taux-tva.md")
-    # Call service the same amount of times as max_tool_calls
-    # `[tool_call] * max_tool_calls` creates a list of tool calls
-    service = ServiceSimule(
-        [tool_call] * max_tool_calls + [texte("Answer after the last tool call")]
-    )
-    messages = conversation.nouvelle_conversation(limites)
-    response = conversation.poser(
-        "TVA ?", messages, service, "simule", limites, refuser, ignorer
-    )
-    assert response == "Answer after the last tool call"
-
-
 def test_poser_fail_too_many_calls(limites):
     max_tool_calls = limites["appels_outil_max"]
     tool_call = appel_outil("lire_fiche", nom="modifier-taux-tva.md")
@@ -148,6 +149,32 @@ def test_poser_fail_too_many_calls_keeps_history(limites):
             "boucle", messages, service, "simule", limites, refuser, ignorer
         )
     # Make sure messages remains unchanged
+    assert messages == message_history
+
+
+def test_poser_fail_service_down(limites):
+    """Check service failure raises ServiceIndisponible"""
+    # ServiceSimule answers the request with service failure
+    service = ServiceSimule([panne()])
+    messages = conversation.nouvelle_conversation(limites)
+    with pytest.raises(ServiceIndisponible):
+        conversation.poser(
+            "panne", messages, service, "simule", limites, refuser, ignorer
+        )
+
+
+def test_poser_fail_service_down_keep_history(limites):
+    """Check convo history remains unchanged after service failure"""
+    # Test panne after successful lire_fiche
+    service = ServiceSimule(
+        [appel_outil("lire_fiche", nom="modifier-taux-tva.md"), panne()]
+    )
+    messages = conversation.nouvelle_conversation(limites)
+    message_history = list(messages)
+    with pytest.raises(ServiceIndisponible):
+        conversation.poser(
+            "panne", messages, service, "simule", limites, refuser, ignorer
+        )
     assert messages == message_history
 
 
