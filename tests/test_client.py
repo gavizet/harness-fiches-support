@@ -2,6 +2,9 @@ import pytest
 import httpx2
 import openai
 
+from types import SimpleNamespace
+from unittest.mock import Mock
+
 from assistant.client import ServiceIndisponible, envoyer
 from assistant.service_simule import (
     ServiceSimule,
@@ -59,3 +62,12 @@ def test_envoyer_fail_service_errors(error, expected_message):
     service = ServiceSimule([error])
     with pytest.raises(ServiceIndisponible, match=expected_message):
         envoyer(service, "simule", TEST_MSG)
+
+
+def test_envoyer_fail_empty_response():
+    """Check empty response raises ServiceIndisponible"""
+    fake_client = Mock()
+    # Mock create a fake object, when you try to access one of its attribute, it creates that fake attribute as well. return_value is what is returned by create when called
+    fake_client.chat.completions.create.return_value = SimpleNamespace(choices=[])
+    with pytest.raises(ServiceIndisponible, match="empty response"):
+        envoyer(fake_client, "simule", TEST_MSG)
